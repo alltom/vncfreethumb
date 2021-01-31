@@ -15,6 +15,10 @@ import (
 	"path/filepath"
 )
 
+var (
+	foldColor = image.NewUniform(color.RGBA{0, 0, 0xff, 0xff})
+)
+
 const (
 	windowWidth  = 1200
 	windowHeight = 720
@@ -27,6 +31,7 @@ type UI struct {
 	windows     []*Window
 	pendingCrop image.Rectangle
 
+	keyPressing  bool
 	eventHandler func(keyEvent *rfb.KeyEventMessage, pointerEvent *rfb.PointerEventMessage)
 }
 
@@ -48,8 +53,8 @@ func (win *Window) ScreenRect() image.Rectangle {
 
 func (win *Window) ScreenToWindow(pt image.Point) image.Point {
 	sr := win.ScreenRect()
-	x := float64(pt.X-sr.Min.X+win.crop.Min.X) / win.scale
-	y := float64(pt.Y-sr.Min.Y+win.crop.Min.Y) / win.scale
+	x := float64(pt.X-sr.Min.X)/win.scale + float64(win.crop.Min.X)
+	y := float64(pt.Y-sr.Min.Y)/win.scale + float64(win.crop.Min.Y)
 	return image.Pt(int(x), int(y)) // round?
 }
 
@@ -118,7 +123,21 @@ func (ui *UI) Update(img draw.Image, keyEvent *rfb.KeyEventMessage, pointerEvent
 		if win.moving {
 			draw.DrawMask(img, image.Rectangle{win.WindowToScreen(win.img.Bounds().Min), win.WindowToScreen(win.img.Bounds().Max)}, win.scaled, image.ZP, image.NewUniform(color.Alpha{0x22}), image.ZP, draw.Over)
 		}
-		draw.Draw(img, win.ScreenRect(), win.scaled, pmulf(win.crop.Min, win.scale), draw.Src)
+		r := win.ScreenRect()
+		draw.Draw(img, r, win.scaled, pmulf(win.crop.Min, win.scale), draw.Src)
+
+		if win.crop.Min.X != win.img.Bounds().Min.X {
+			draw.Draw(img, image.Rect(r.Min.X-2, r.Min.Y, r.Min.X, r.Max.Y), foldColor, image.ZP, draw.Src)
+		}
+		if win.crop.Min.Y != win.img.Bounds().Min.Y {
+			draw.Draw(img, image.Rect(r.Min.X, r.Min.Y-2, r.Max.X, r.Min.Y), foldColor, image.ZP, draw.Src)
+		}
+		if win.crop.Max.X != win.img.Bounds().Max.X {
+			draw.Draw(img, image.Rect(r.Max.X, r.Min.Y, r.Max.X+2, r.Max.Y), foldColor, image.ZP, draw.Src)
+		}
+		if win.crop.Max.Y != win.img.Bounds().Max.Y {
+			draw.Draw(img, image.Rect(r.Min.X, r.Max.Y, r.Max.X, r.Max.Y+2), foldColor, image.ZP, draw.Src)
+		}
 	}
 
 	draw.Draw(img, ui.pendingCrop, image.NewUniform(color.NRGBA{0xb7, 0x96, 0xd4, 0x88}), image.ZP, draw.Over)
@@ -141,6 +160,44 @@ func (ui *UI) defaultEventHandler(keyEvent *rfb.KeyEventMessage, pointerEvent *r
 		if loc.In(win.ScreenRect()) {
 			targetWin = idx
 		}
+	}
+
+	if !ui.keyPressing && keyEvent.Pressed && targetWin != -1 {
+		win := ui.windows[targetWin]
+		oldcrop := win.crop
+		switch keyEvent.KeySym {
+		case 119: // w
+			if win.crop.Min.Y != win.img.Bounds().Min.Y {
+				win.crop.Min.Y = win.img.Bounds().Min.Y
+			} else {
+				win.crop.Min.Y = win.ScreenToWindow(loc).Y
+			}
+		case 97: // a
+			if win.crop.Min.X != win.img.Bounds().Min.X {
+				win.crop.Min.X = win.img.Bounds().Min.X
+			} else {
+				win.crop.Min.X = win.ScreenToWindow(loc).X
+			}
+		case 115: // s
+			if win.crop.Max.Y != win.img.Bounds().Max.Y {
+				win.crop.Max.Y = win.img.Bounds().Max.Y
+			} else {
+				win.crop.Max.Y = win.ScreenToWindow(loc).Y
+			}
+		case 100: // d
+			if win.crop.Max.X != win.img.Bounds().Max.X {
+				win.crop.Max.X = win.img.Bounds().Max.X
+			} else {
+				win.crop.Max.X = win.ScreenToWindow(loc).X
+			}
+		}
+		win.pos.X += int(float64(win.crop.Min.X-oldcrop.Min.X) * win.scale)
+		win.pos.Y += int(float64(win.crop.Min.Y-oldcrop.Min.Y) * win.scale)
+
+		ui.keyPressing = true
+	}
+	if !keyEvent.Pressed {
+		ui.keyPressing = false
 	}
 
 	if pointerEvent.ButtonMask&0b1 > 0 && targetWin != -1 {
@@ -167,8 +224,14 @@ func (ui *UI) defaultEventHandler(keyEvent *rfb.KeyEventMessage, pointerEvent *r
 			loc2 := image.Pt(int(pointerEvent.X), int(pointerEvent.Y))
 			if pointerEvent.ButtonMask&0b100 == 0 {
 				if math.Hypot(float64(loc2.X-loc.X), float64(loc2.Y-loc.Y)) < 10 {
-					win.pos = win.WindowToScreen(win.lastCrop.Min)
-					win.crop, win.lastCrop = win.lastCrop, win.crop
+					oldcrop := win.crop
+					if win.img.Bounds() == win.crop {
+						win.crop, win.lastCrop = win.lastCrop, win.crop
+					} else {
+						win.crop, win.lastCrop = win.img.Bounds(), win.crop
+					}
+					win.pos.X += int(float64(win.crop.Min.X-oldcrop.Min.X) * win.scale)
+					win.pos.Y += int(float64(win.crop.Min.Y-oldcrop.Min.Y) * win.scale)
 				} else {
 					newcrop := image.Rectangle{win.ScreenToWindow(loc), win.ScreenToWindow(loc2)}.Canon()
 					win.pos = win.WindowToScreen(newcrop.Min)

@@ -9,3 +9,5 @@ And so vncfreethumb was born…
 * cmd/server/ui.go implements the GUI
 * cmd/server/main.go implements a VNC server to host the GUI
 * rfb/rfb.go and rfb/image.go implement the relevant parts of the VNC (Remote Framebuffer) protocol
+
+Press W, A, S, D to fold back parts of a window. Swipe a region with the right mouse button to fold back everything outside of it. Click the right mouse button to toggle all folds.
