@@ -9,6 +9,7 @@ import (
 	"image/draw"
 	_ "image/png"
 	"io/ioutil"
+	"log"
 	"math"
 	"os"
 	"path/filepath"
@@ -89,12 +90,13 @@ func NewUI(wdir string) (*UI, error) {
 			}
 			img, _, err := image.Decode(f)
 			if err != nil {
-				return nil, fmt.Errorf("decode image: %v", err)
+				return nil, fmt.Errorf("decode %q: %v", info.Name(), err)
 			}
 			return img, nil
 		}()
 		if err != nil {
-			return nil, err
+			log.Print(err)
+			continue
 		}
 
 		win := &Window{img: img, crop: img.Bounds(), lastCrop: img.Bounds(), scale: 0.5, pos: image.Pt(0, 0)}
