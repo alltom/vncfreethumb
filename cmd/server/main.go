@@ -11,11 +11,15 @@ import (
 	"io"
 	"log"
 	"net"
+	"os"
 )
 
 const maxFPS = 20
 
-var addr = flag.String("addr", "127.0.0.1:5900", "Address to listen for connections on.")
+var (
+	addr    = flag.String("addr", "127.0.0.1:5900", "Address to listen for connections on.")
+	runOnce = flag.Bool("run_once", false, "If true, quits after the first disconnect.")
+)
 
 func main() {
 	flag.Parse()
@@ -104,6 +108,10 @@ func rfbServe(conn io.ReadWriter, wdir string) error {
 	ui, err := NewUI(wdir)
 	if err != nil {
 		return fmt.Errorf("create UI: %v", err)
+	}
+	if *runOnce {
+		log.Println("quitting…")
+		defer os.Exit(0)
 	}
 
 	serverInit = rfb.ServerInitialisationMessage{
