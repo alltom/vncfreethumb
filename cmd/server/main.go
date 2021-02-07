@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"github.com/alltom/vncfreethumb/rfb"
 	"image"
-	"image/draw"
 	"io"
 	"log"
 	"net"
@@ -156,8 +155,14 @@ func rfbServe(conn io.ReadWriter, wdir string) error {
 			r := image.Rect(int(m.X), int(m.Y), int(m.X)+int(m.Width), int(m.Y)+int(m.Height))
 			img := image.NewRGBA(r)
 			ui.Update(img, &keyEvent, &pointerEvent)
-			img2 := rfb.NewPixelFormatImage(pixelFormat, r)
-			draw.Draw(img2, r, img, r.Min, draw.Src)
+
+			img2, err := rfb.NewPixelFormatImage(pixelFormat, r)
+			if err != nil {
+				return fmt.Errorf("create PixelFormatImage: %v", err)
+			}
+			if err := img2.CopyFromRGBA(img); err != nil {
+				return fmt.Errorf("serialize image: %v", err)
+			}
 
 			var update rfb.FramebufferUpdateMessage
 			update.Rectangles = []*rfb.FramebufferUpdateRect{

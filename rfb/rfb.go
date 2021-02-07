@@ -609,7 +609,10 @@ type PixelFormat struct {
 	BitsPerPixel uint8
 	BitDepth     uint8
 	BigEndian    bool
-	TrueColor    bool
+
+	// RGB definitions below are used if true.
+	// If false, palette mode is used, which is unsupported by this library.
+	TrueColor bool
 
 	RedMax     uint16
 	GreenMax   uint16
