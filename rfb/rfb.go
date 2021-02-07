@@ -1,13 +1,15 @@
 /*
 Package rfb defines representations and serialization for messages in the RFB (Remote Framebuffer) protocol, which is used for VNC.
 
-Types that do not not have a protocol version suffix such as "RFB33" are appropriate for use with all versions of the RFB protocol.
+Types that do not not have a protocol version suffix such as "RFB33" are appropriate for use with all known versions of the RFB protocol.
 
 See the RFCs for details, but the initial handshake goes like this:
 
 	server sends ProtocolVersionMessage
 	client sends ProtocolVersionMessage
 	server sends AuthenticationSchemeMessageRFB33
+		If AuthenticationSchemeNone:
+			continue
 		If AuthenticationSchemeVNC:
 			server sends VNCAuthenticationChallengeMessage
 			client sends VNCAuthenticationResponseMessage
@@ -15,7 +17,7 @@ See the RFCs for details, but the initial handshake goes like this:
 	client sends ClientInitialisationMessage
 	server sends ServerInitialisationMessage
 
-Thereafter, client and server enter message processing loops. The first byte identifies the message type, which dictates the length of the payload, so all clients and servers must process all event types.
+Thereafter, client and server enter message processing loops. The first byte identifies the message type, which dictates the length of the payload, so all clients and servers must process all event types. Each message's Read function verifies the presence of the message type byte.
 
 Clients may send:
 
@@ -29,7 +31,7 @@ Clients may send:
 
 Servers may send:
 
-	Type 0	FramebufferUpdate
+	Type 0	FramebufferUpdateMessage — only in response to FramebufferUpdateRequestMessage
 	Type 1	SetColourMapEntries — uncommon, not implemented by this library
 	Type 2	BellMessage
 	Type 3	ServerCutTextMessage
