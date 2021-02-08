@@ -13,9 +13,9 @@ Width	FPS	Time
 Draw from image.RGBA to PixelFormatImage
 
 Width	FPS	Time
-1	9.5M	105 nanoseconds
-512	90.9	11 milliseconds
-1024	23.2	43 milliseconds
+1	9.5M	105ns
+512	90.9	11ms
+1024	23.2	43ms
 
 CopyToRGBA
 
@@ -25,6 +25,8 @@ Width	FPS	Time
 1024	116	8.63ms
 
 CopyFromRGBA
+
+Width	FPS	Time
 1	95.2M	10.5ns
 512	607	1.65ms
 1024	153	6.55ms
